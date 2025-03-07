@@ -28,21 +28,30 @@ class SolarApp:
         self.fig.subplots_adjust(right=0.85)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_title("Solar")
-        self.ax.set_xlabel("Time")
-        self.ax.set_ylabel("Power & Charge")
-        self.ax.xaxis.set_major_formatter(dates.DateFormatter('%H:%M:%S'))
+        self.ax.set_xlabel("Time (s)")
+        self.ax.set_ylabel("Power (W)")
+
+        # Create a second y-axis for battery charge
+        self.ax2 = self.ax.twinx()  
+        self.ax2.set_ylabel("Battery Charge (%)")  # Label for the second y-axis
         
         self.x_data, self.y_data_use, self.y_data_pv1, self.y_data_pv2, self.y_data_batt, self.y_data_import = [], [], [], [], [], []
         
         # Create line objects for each data series
-        self.line_use, = self.ax.plot(self.x_data, self.y_data_use, "g-", label="Use (W)")
-        self.line_pv1, = self.ax.plot(self.x_data, self.y_data_pv1, "b-", label="PV1 (W)")
-        self.line_pv2, = self.ax.plot(self.x_data, self.y_data_pv2, "c-", label="PV2 (W)")
-        self.line_batt, = self.ax.plot(self.x_data, self.y_data_batt, "y-", label="Batt (%)")
-        self.line_import, = self.ax.plot(self.x_data, self.y_data_import, "r-", label="Import (W)")
+        self.line_use, = self.ax.plot(self.x_data, self.y_data_use, "g-", label="Use")
+        self.line_pv1, = self.ax.plot(self.x_data, self.y_data_pv1, "b-", label="PV1")
+        self.line_pv2, = self.ax.plot(self.x_data, self.y_data_pv2, "c-", label="PV2")
+        self.line_import, = self.ax.plot(self.x_data, self.y_data_import, "r-", label="Import")
+        self.line_batt, = self.ax2.plot(self.x_data, self.y_data_batt, "y-", label="Batt")
         
         # Add legend
         self.ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+
+        # Add a fill under the battery charge curve
+        self.batt_fill = None
+
+        # Add legend for the second y-axis
+        self.ax2.legend(loc="upper left", bbox_to_anchor=(1, 0.75))
         
         # Create canvas for Matplotlib figure
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
@@ -95,10 +104,18 @@ class SolarApp:
             
             self.line_import.set_xdata(self.x_data)
             self.line_import.set_ydata(self.y_data_import)
+
+            # Clear the previous fill and create a new one
+            if self.batt_fill is not None:
+                self.batt_fill.remove()
+            # Update the fill under the battery curve
+            self.batt_fill = self.ax2.fill_between(self.x_data, self.y_data_batt, color='orange', alpha=0.3)
             
             # Relimit and autoscale the view for the plot
             self.ax.relim()
             self.ax.autoscale_view()
+            self.ax2.relim()
+            self.ax2.autoscale_view()
             self.canvas.draw()
             
             await asyncio.sleep(1)
