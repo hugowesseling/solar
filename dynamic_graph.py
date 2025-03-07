@@ -8,14 +8,22 @@ from pymodbus.client import AsyncModbusTcpClient
 import datetime, time
 from hugo_saj.modbus_data_readers import *
 
-MAX_DATA_POINTS = 600 # 10 minutes of data
+MAX_DATA_POINTS = 600
 
 async def getSolarData(client):
+    start_time = time.time()
     data11 = await read_additional_modbus_data_1_part_1(client)
+    after1_time = time.time()
     data12 = await read_additional_modbus_data_1_part_2(client)
-    return {"pv1": data11["pv1Power"], "pv2": data11["pv2Power"],
-            "use": data12["totalgridPower"], "batt": data11["batEnergyPercent"],
-            "import": data12["CT_GridPowerWatt"]}
+    data = {}
+    try:
+        data = {"pv1": data11["pv1Power"], "pv2": data11["pv2Power"],
+                "use": data12["totalgridPower"], "batt": data11["batEnergyPercent"],
+                "import": data12["CT_GridPowerWatt"]}
+    except KeyError:
+        print(f"Missing keys in data: {data11}, {data12}")
+    print(f"time1: {(after1_time - start_time) * 1000:.2f}ms, time2: {(time.time() - after1_time) * 1000:.2f}ms, data: {data}")
+    return data
 
 class SolarApp:
     def __init__(self, root):
@@ -43,15 +51,11 @@ class SolarApp:
         self.line_pv2, = self.ax.plot(self.x_data, self.y_data_pv2, "c-", label="PV2")
         self.line_import, = self.ax.plot(self.x_data, self.y_data_import, "r-", label="Import")
         self.line_batt, = self.ax2.plot(self.x_data, self.y_data_batt, "y-", label="Batt")
-        
-        # Add legend
+
         self.ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+        # self.ax2.legend(loc="upper left", bbox_to_anchor=(1, 0.75))
 
-        # Add a fill under the battery charge curve
         self.batt_fill = None
-
-        # Add legend for the second y-axis
-        self.ax2.legend(loc="upper left", bbox_to_anchor=(1, 0.75))
         
         # Create canvas for Matplotlib figure
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
@@ -67,12 +71,13 @@ class SolarApp:
         client = AsyncModbusTcpClient(host="192.168.1.103", port=502)
         await client.connect()
         print(f"client={client}")
-        t = 0
         while True:
-            print("Getting data")
-            start_time = time.time()
             data = await getSolarData(client) # pv1, pv2, use, batt, import
-            print(f"Time: {(time.time() - start_time) * 1000:.2f}. Data={data}")
+            if len(data) == 0:
+                print("Data problem, reconnecting")
+                await client.connect()
+                print("Reconnection attempt done")
+                continue
             
             self.x_data.append(datetime.datetime.now())
             self.y_data_use.append(data["use"])
@@ -80,8 +85,7 @@ class SolarApp:
             self.y_data_pv2.append(data["pv2"])
             self.y_data_batt.append(data["batt"])
             self.y_data_import.append(data["import"])
-            t += 1
-            
+
             if len(self.x_data) > MAX_DATA_POINTS:
                 self.x_data.pop(0)
                 self.y_data_use.pop(0)
