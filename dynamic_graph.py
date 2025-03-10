@@ -19,7 +19,7 @@ async def getSolarData(client):
     try:
         data = {"pv1": data11["pv1Power"], "pv2": data11["pv2Power"],
                 "use": data12["totalgridPower"], "batt": data11["batEnergyPercent"],
-                "import": data12["CT_GridPowerWatt"]}
+                "import": data12["CT_GridPowerWatt"], "bpow": data12["batteryPower"]}
     except KeyError:
         print(f"Missing keys in data: {data11}, {data12}")
     print(f"time1: {(after1_time - start_time) * 1000:.2f}ms, time2: {(time.time() - after1_time) * 1000:.2f}ms, data: {data}")
@@ -35,6 +35,8 @@ class SolarApp:
         self.fig.tight_layout()
         self.fig.subplots_adjust(right=0.85)
         self.ax = self.fig.add_subplot(111)
+        self.ax.grid()
+        self.ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M:%S"))
         self.ax.set_title("Solar")
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Power (W)")
@@ -43,14 +45,15 @@ class SolarApp:
         self.ax2 = self.ax.twinx()  
         self.ax2.set_ylabel("Battery Charge (%)")  # Label for the second y-axis
         
-        self.x_data, self.y_data_use, self.y_data_pv1, self.y_data_pv2, self.y_data_batt, self.y_data_import = [], [], [], [], [], []
+        self.x_data, self.y_data_use, self.y_data_pv1, self.y_data_pv2, self.y_data_batt, self.y_data_import, self.y_data_bpow = [], [], [], [], [], [], []
         
         # Create line objects for each data series
         self.line_use, = self.ax.plot(self.x_data, self.y_data_use, "g-", label="Use")
         self.line_pv1, = self.ax.plot(self.x_data, self.y_data_pv1, "b-", label="PV1")
         self.line_pv2, = self.ax.plot(self.x_data, self.y_data_pv2, "c-", label="PV2")
         self.line_import, = self.ax.plot(self.x_data, self.y_data_import, "r-", label="Import")
-        self.line_batt, = self.ax2.plot(self.x_data, self.y_data_batt, "y-", label="Batt")
+        self.line_bpow, = self.ax.plot(self.x_data, self.y_data_bpow, "y-", label="Batt")
+        #self.line_batt, = self.ax2.plot(self.x_data, self.y_data_batt, "y-", label="Batt")
 
         self.ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
         # self.ax2.legend(loc="upper left", bbox_to_anchor=(1, 0.75))
@@ -85,6 +88,7 @@ class SolarApp:
             self.y_data_pv2.append(data["pv2"])
             self.y_data_batt.append(data["batt"])
             self.y_data_import.append(data["import"])
+            self.y_data_bpow.append(data["bpow"])
 
             if len(self.x_data) > MAX_DATA_POINTS:
                 self.x_data.pop(0)
@@ -93,6 +97,7 @@ class SolarApp:
                 self.y_data_pv2.pop(0)
                 self.y_data_batt.pop(0)
                 self.y_data_import.pop(0)
+                self.y_data_bpow.pop(0)
             
             self.line_use.set_xdata(self.x_data)
             self.line_use.set_ydata(self.y_data_use)
@@ -103,17 +108,20 @@ class SolarApp:
             self.line_pv2.set_xdata(self.x_data)
             self.line_pv2.set_ydata(self.y_data_pv2)
             
-            self.line_batt.set_xdata(self.x_data)
-            self.line_batt.set_ydata(self.y_data_batt)
+            #self.line_batt.set_xdata(self.x_data)
+            #self.line_batt.set_ydata(self.y_data_batt)
             
             self.line_import.set_xdata(self.x_data)
             self.line_import.set_ydata(self.y_data_import)
+
+            self.line_bpow.set_xdata(self.x_data)
+            self.line_bpow.set_ydata(self.y_data_bpow)
 
             # Clear the previous fill and create a new one
             if self.batt_fill is not None:
                 self.batt_fill.remove()
             # Update the fill under the battery curve
-            self.batt_fill = self.ax2.fill_between(self.x_data, self.y_data_batt, color='orange', alpha=0.3)
+            self.batt_fill = self.ax2.fill_between(self.x_data, self.y_data_batt, color='orange', alpha=0.1)
             
             # Relimit and autoscale the view for the plot
             self.ax.relim()
