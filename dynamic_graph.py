@@ -9,6 +9,7 @@ import datetime, time
 from hugo_saj.modbus_data_readers import *
 
 MAX_DATA_POINTS = 600
+IP_ADDRESS = "192.168.1.100"
 
 async def getSolarData(client):
     start_time = time.time()
@@ -71,7 +72,7 @@ class SolarApp:
         asyncio.run(self.update_graph())
 
     async def update_graph(self):
-        client = AsyncModbusTcpClient(host="192.168.1.103", port=502)
+        client = AsyncModbusTcpClient(host=IP_ADDRESS, port=502)
         await client.connect()
         print(f"client={client}")
         while True:
